@@ -1,5 +1,4 @@
-use btleplug::api::{Central, Manager as _, Peripheral, ScanFilter};
-use btleplug::platform::{Adapter, Manager};
+use bluer::{Adapter, Session};
 use std::time::Duration;
 use tokio::time;
 use anyhow::Result;
@@ -23,19 +22,18 @@ impl BluetoothConnectionManager {
     }
 
     pub async fn start_services(&self) -> Result<()> {
-        let manager = Manager::new().await?;
-        let adapters = manager.adapters().await?;
-        let central = adapters.into_iter().next().unwrap();
+        let session = Session::new().await?;
+        let adapter = session.default_adapter().await?;
+        adapter.set_powered(true).await?;
 
-        central.start_scan(ScanFilter::default()).await?;
-        time::sleep(Duration::from_secs(2)).await;
+        let discover = adapter.discover_devices().await?;
+        time::sleep(Duration::from_secs(5)).await;
 
-        for p in central.peripherals().await? {
-            println!("Connecting to peripheral {:?}", p.properties().await?);
-            if p.connect().await.is_ok() {
-                println!("Connected to peripheral");
-            }
+        let devices = adapter.device_addresses().await?;
+        for addr in devices {
+            println!("Found device: {}", addr);
         }
+
         Ok(())
     }
 
